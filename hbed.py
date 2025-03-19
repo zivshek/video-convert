@@ -3,7 +3,6 @@ import sys
 import subprocess
 
 def get_file_size_mb(file_path):
-    """Get the size of a file in megabytes."""
     size_bytes = os.path.getsize(file_path)
     size_mb = size_bytes / (1024 * 1024)
     return size_mb
@@ -13,31 +12,25 @@ def compress_with_handbrake(original_file):
     original_size_mb = get_file_size_mb(original_file)
     print(f"Original file size: {original_size_mb:.2f} MB")
 
-    """Compress the video file using HandBrake CLI"""
     output_file = original_file.replace(".mp4", "-hbed.mp4")
     
     # HandBrake CLI command to compress the video
     handbrake_command = [
-        "C:\\HandBrakeCLI\\HandBrakeCLI.exe",
+        "HandBrakeCLI",
         "-i", original_file,
         "-o", output_file,
-        "-Y", "1920",
+        "-Y", "2160",
         "-X", "3840",
-        "--preset", "Fast 1080p30"  # You can change this preset as needed
+        "--preset", "Fast 1080p30"  # change this preset as needed
     ]
     
     print(f"Compressing {original_file} to {output_file}...")
     result = subprocess.run(handbrake_command, capture_output=True, text=True)
     
     if result.returncode == 0:
-        # Get compressed file size
         compressed_size_mb = get_file_size_mb(output_file)
-        
-        # Calculate size difference
         size_saved_mb = original_size_mb - compressed_size_mb
-        
         print(f"original:{original_size_mb:.2f} MB, compressed:{compressed_size_mb:.2f} MB, saved:{size_saved_mb:.2f} MB")
-        
         return output_file, size_saved_mb
     else:
         print(f"ERROR: HandBrake returned code {result.returncode}")
@@ -48,12 +41,12 @@ def compress_with_handbrake(original_file):
 def apply_tags(original_file, compressed_file):
     """Copy metadata from the original file to the compressed file"""
     # Call exiftool
-    result = subprocess.run(["C:\dev\exiftool-13.25_64\exiftool.exe", "-TagsFromFile", original_file, compressed_file])
+    result = subprocess.run(["exiftool", "-TagsFromFile", original_file, compressed_file])
     if result.returncode == 0:
         print(f"Tags applied from {original_file} to {compressed_file}")
         return True
     else:
-        print(f"Error applying tags: {result.stderr}")
+        print(f"Error applying tags")
         return False
 
 def main():
@@ -67,7 +60,6 @@ def main():
         if file_name.lower().endswith(".mp4") and "-hbed" not in file_name:
             original_file = os.path.join(folder_path, file_name)
             
-            # Step 1: Compress the file with HandBrake
             result = compress_with_handbrake(original_file)
             
             if result and result[0]:
