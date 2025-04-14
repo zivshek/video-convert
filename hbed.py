@@ -99,8 +99,8 @@ def compress_with_handbrake(original_file, verbose_output=False):
                             
                             # Print ETA if available
                             if "ETA" in output:
-                                eta = output.split("ETA")[1][:9].strip()
-                                print(f" (ETA: {eta})", end='', flush=True)
+                                eta = output.split("ETA")[1][:10].strip()
+                                print(f"  (ETA: {eta})", end='', flush=True)
                     except ValueError:
                         pass
         
