@@ -17,7 +17,7 @@ def compress_with_handbrake(original_file):
     output_file = original_file.replace(".mp4", "-hbed.mp4")
     
     handbrake_command = [
-        "HandBrakeCLI",
+        "C:\\HandBrakeCLI\\HandBrakeCLI.exe",
         "-i", original_file,
         "-o", output_file,
         "-Y", "2160",
@@ -26,26 +26,93 @@ def compress_with_handbrake(original_file):
     ]
     
     print(f"Compressing {original_file} to {output_file}...")
-    result = subprocess.run(handbrake_command, capture_output=True, text=True)
     
-    if result.returncode == 0:
+    # Run the process with real-time output streaming
+    process = subprocess.Popen(
+        handbrake_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        universal_newlines=True
+    )
+    
+    # Track progress stages
+    current_stage = "Preparing"
+    last_percentage = 0
+    scanning_complete = False
+    
+    def print_progress_bar(percentage, stage="Processing"):
+        """Print a progress bar with the current percentage"""
+        bar_length = 40
+        filled_length = int(bar_length * percentage / 100)
+        bar = '█' * filled_length + '-' * (bar_length - filled_length)
+        print(f"\r{stage}: [{bar}] {percentage:.1f}%", end='', flush=True)
+    
+    # Print output in real-time, but only show progress
+    while True:
+        output = process.stdout.readline()
+        if output == '' and process.poll() is not None:
+            break
+        if output:
+            # Extract scanning percentage
+            if "Scanning title" in output and "%" in output:
+                try:
+                    percentage = float(output.split("%")[0].split(",")[-1].strip())
+                    if percentage > last_percentage:
+                        last_percentage = percentage
+                        current_stage = "Scanning"
+                        print_progress_bar(percentage, current_stage)
+                except ValueError:
+                    pass
+            
+            # Extract encoding percentage
+            elif "Encoding: task" in output and "%" in output:
+                try:
+                    parts = output.split("%")[0].split(",")
+                    percentage = float(parts[-1].strip())
+                    
+                    # Only when we see first encoding percentage, print a newline to separate from scanning
+                    if not scanning_complete and "Encoding" in output:
+                        scanning_complete = True
+                        print()  # New line after scanning completes
+                        last_percentage = 0  # Reset for encoding percentage
+                    
+                    if percentage > last_percentage:
+                        last_percentage = percentage
+                        current_stage = "Encoding"
+                        print_progress_bar(percentage, current_stage)
+                        
+                        # Print ETA if available
+                        if "ETA" in output:
+                            eta = output.split("ETA")[1].strip()
+                            print(f" (ETA: {eta})", end='', flush=True)
+                except ValueError:
+                    pass
+    
+    # Final newline after progress bar is complete
+    print()
+            
+    return_code = process.poll()
+    
+    if return_code == 0:
         compressed_size_mb = get_file_size_mb(output_file)
         size_saved_mb = original_size_mb - compressed_size_mb
         
         print(f"original:{original_size_mb:.2f} MB, compressed:{compressed_size_mb:.2f} MB, saved:{size_saved_mb:.2f} MB")
         return output_file, size_saved_mb
     else:
-        print(f"ERROR: HandBrake returned code {result.returncode}")
+        print(f"ERROR: HandBrake returned code {return_code}")
         return None, 0
 
 def apply_tags(original_file, compressed_file):
     """Copy metadata from the original file to the compressed file"""
-    result = subprocess.run(["exiftool", "-TagsFromFile", original_file, compressed_file])
+    result = subprocess.run(["C:\\dev\\exiftool-13.25_64\\exiftool.exe", "-TagsFromFile", original_file, compressed_file])
     if result.returncode == 0:
         print(f"Tags applied from {original_file} to {compressed_file}")
         return True
     else:
-        print(f"Error applying tags: {result.stderr}")
+        print(f"Error applying tags: {result.returncode}")
         return False
 
 def main():
